@@ -76,11 +76,6 @@ PRs welcome! Key needs:
 
 ---
 
-## 📜 License  
-MIT © [Your Name]  
-
----
-
 ### ✉️ Contact  
 For collaborations/questions:  
 - Email: your.email@example.com  
