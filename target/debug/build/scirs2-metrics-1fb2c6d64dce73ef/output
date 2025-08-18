@@ -1,0 +1,2 @@
+cargo:rustc-link-lib=pthread
+cargo:rustc-link-lib=framework=Accelerate
