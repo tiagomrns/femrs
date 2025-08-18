@@ -1,1 +1,0 @@
-Matrix<f64, Dyn, Dyn, VecStorage<f64, Dyn, Dyn>>: From<Matrix<f64, Dyn, Const<1>, VecStorage<f64, Dyn, Const<1>>>>
