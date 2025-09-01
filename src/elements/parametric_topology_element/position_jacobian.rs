@@ -40,8 +40,7 @@
 //! The implementation uses nalgebra's efficient matrix operations and avoids unnecessary allocations.
 //! For repeated computations, consider reusing matrix allocations where possible.
 
-use nalgebra::{DMatrix, Dim, Dyn, Matrix, VecStorage};
-use nalgebra::dimension::{U2, U3, DimName};
+
 
 /// Computes the Jacobian matrix for finite element analysis.
 ///
@@ -61,14 +60,8 @@ where
     D: Dim, D: DimName
     // Ensure D is either U2 or U3 by checking it's one of these types
 {
-    let n_nodes = element_node_ids.len();
     let dim = all_nodal_coords.nrows();
-    
-    assert_eq!(
-        jacobian_shape_functions.nrows(),
-        n_nodes,
-        "Shape function rows must match number of element nodes"
-    );
+
     assert_eq!(
         jacobian_shape_functions.ncols(),
         dim,

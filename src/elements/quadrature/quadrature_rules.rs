@@ -41,7 +41,6 @@
 //! Note: Higher-order rules can be added by extending the `create_1d_rule` function
 //! and adding corresponding type aliases and initialization methods.
 
-use nalgebra::SVector;
 use std::{iter::IntoIterator, usize};
 use once_cell::sync::Lazy;
 
@@ -68,15 +67,15 @@ impl std::error::Error for QuadratureError {}
 #[derive(Debug, Clone)]
 // Use const generic for compile-time known sizes
 pub struct QuadratureRule<const DIM: usize, const LEN: usize> {
-    pub points: [SVector<f64, DIM>; LEN],  // Array of fixed-size vectors
+    pub points: [[f64; DIM]; LEN],  // Array of fixed-size vectors
     pub weights: [f64; LEN],             // Array of weights
 }
 
 // Implement IntoIterator to allow for iteration over points and weights
 impl<const DIM: usize, const LEN: usize> IntoIterator for QuadratureRule<DIM, LEN> {
-    type Item = (SVector<f64, DIM>, f64);
+    type Item = ([f64; DIM], f64);
     type IntoIter = std::iter::Zip<
-        std::array::IntoIter<SVector<f64, DIM>, LEN>,
+        std::array::IntoIter<[f64; DIM], LEN>,
         std::array::IntoIter<f64, LEN>,
     >;
 
@@ -109,7 +108,7 @@ static QUADRATIC_3D: Lazy<QuadratureRule<3, 27>> = Lazy::new(
 
 fn create_linear_1d_rule() -> QuadratureRule<1, 2> {
     let aux = 1.0 / (3.0_f64).sqrt();
-    let points = [SVector::from([-aux]), SVector::from([aux])];
+    let points = [[-aux], [aux]];
     let weights = [1.0, 1.0];
 
     let (points, weights) = transform_to_01(points, weights);
@@ -119,7 +118,7 @@ fn create_linear_1d_rule() -> QuadratureRule<1, 2> {
 fn create_quadratic_1d_rule() -> QuadratureRule<1, 3> {
     let aux1 = (3.0 / 5.0_f64).sqrt();
     let aux2 = 5.0 / 9.0;
-    let points = [SVector::from([-aux1]), SVector::from([0.0]), SVector::from([aux1])];
+    let points = [[-aux1], [0.0], [aux1]];
     let weights = [aux2, 8.0 / 9.0, aux2];
 
     let (points, weights) = transform_to_01(points, weights);
@@ -129,7 +128,7 @@ fn create_quadratic_1d_rule() -> QuadratureRule<1, 3> {
 fn create_2d_from_1d<const IN_LEN: usize, const OUT_LEN: usize>(
     rule_1d: &QuadratureRule<1, IN_LEN>,
 ) -> Result<QuadratureRule<2, OUT_LEN>, QuadratureError> {
-    let mut points = [SVector::zeros(); OUT_LEN];
+    let mut points = [[0.0, 0.0]; OUT_LEN];
     let mut weights = [0.0; OUT_LEN];
 
     let actual_dimension: usize = IN_LEN * IN_LEN;
@@ -140,7 +139,7 @@ fn create_2d_from_1d<const IN_LEN: usize, const OUT_LEN: usize>(
     for (i, (x, wx)) in rule_1d.clone().into_iter().enumerate() {
         for (j, (y, wy)) in rule_1d.clone().into_iter().enumerate() {
             let idx = i * IN_LEN + j;
-            points[idx] = SVector::from([x[0], y[0]]);
+            points[idx] = [x[0], y[0]];
             weights[idx] = wx * wy;
         }
     }
@@ -151,7 +150,7 @@ fn create_2d_from_1d<const IN_LEN: usize, const OUT_LEN: usize>(
 fn create_3d_from_1d<const IN_LEN: usize, const OUT_LEN: usize>(
     rule_1d: &QuadratureRule<1, IN_LEN>,
 ) -> Result<QuadratureRule<3, OUT_LEN>, QuadratureError> {
-    let mut points = [SVector::zeros(); OUT_LEN];
+    let mut points = [[0.0, 0.0, 0.0]; OUT_LEN];
     let mut weights = [0.0; OUT_LEN];
 
     let actual_dimension: usize = IN_LEN * IN_LEN * IN_LEN;
@@ -163,7 +162,7 @@ fn create_3d_from_1d<const IN_LEN: usize, const OUT_LEN: usize>(
         for (j, (y, wy)) in rule_1d.clone().into_iter().enumerate() {
             for (k, (z, wz)) in rule_1d.clone().into_iter().enumerate() {
                 let idx = (i * IN_LEN + j) * IN_LEN + k;
-                points[idx] = SVector::from([x[0], y[0], z[0]]);
+                points[idx] = [x[0], y[0], z[0]];
                 weights[idx] = wx * wy * wz;
             }
         }
@@ -174,10 +173,10 @@ fn create_3d_from_1d<const IN_LEN: usize, const OUT_LEN: usize>(
 
 /// Transform points and weights from ```[-1,1]``` to ```[0,1]``` quadrature
 fn transform_to_01<const DIM: usize, const LEN: usize>(
-    points: [SVector<f64, DIM>; LEN],
+    points: [[f64; DIM]; LEN],
     weights: [f64; LEN],
-) -> ([SVector<f64, DIM>; LEN], [f64; LEN]) {
-    let transformed_points = points.map(|p| (p + SVector::repeat(1.0)) / 2.0);
+) -> ([[f64; DIM]; LEN], [f64; LEN]) {
+    let transformed_points = points.map(|p| (p + 1.0) / 2.0);
     let transformed_weights = weights.map(|w| w / 2.0_f64.powi(DIM as i32));
     (transformed_points, transformed_weights)
 }

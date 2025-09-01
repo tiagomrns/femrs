@@ -132,14 +132,24 @@
 //! - Handles singular matrices (c0 = 0) by returning None
 //! - Numerically stable through use of `recip()` instead of direct division
 
-use nalgebra::{Matrix3, Matrix2, SMatrix};
+// Correct 2x2 matrix definition
+struct MatrixNxN<const SIZE: usize>([[f64; SIZE]; SIZE]);
+type Matrix2x2 = MatrixNxN<2>;
+type Matrix3x3 = MatrixNxN<3>;
+
+impl Matrix3x3 {
+    fn identity() -> Self {
+        MatrixNxN([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    }   
+}
 
 // Function to compute the adjugate of a 2x2 matrix
-fn adjugate2x2(m: &Matrix2<f64>) -> Matrix2<f64> {
-    Matrix2::new(
-        m[(1, 1)],  -m[(0, 1)],
-       -m[(1, 0)],   m[(0, 0)],
-    )
+fn adjugate2x2(m: &Matrix2x2) -> Matrix2x2 {
+    let [[a, b], [c, d]] = m.0;
+    MatrixNxN([
+        [d, -b], 
+        [-c, a]
+    ])
 }
 
 #[derive(Clone, Debug)]
@@ -155,7 +165,7 @@ type DeterminantExpansion1Parameter<const SIZE: usize, const DEGREE: usize, cons
     = PolynomialCoefficientsFixedLength<f64, LEN>; // LEN = SIZE * DEGREE + 1
 
 type AdjugateExpansion1Parameter<const SIZE: usize, const DEGREE: usize, const LEN: usize>
-    = PolynomialCoefficientsFixedLength<SMatrix<f64, SIZE, SIZE>, LEN>; // LEN = (SIZE - 1) * DEGREE + 1
+    = PolynomialCoefficientsFixedLength<MatrixNxN<SIZE>, LEN>; // LEN = (SIZE - 1) * DEGREE + 1
 
 pub struct DeterminantAndAdjugateExpansions1Parameter<const SIZE: usize, const DEGREE: usize, const DET_LEN: usize, const ADJ_LEN: usize> {
     determinant: DeterminantExpansion1Parameter<SIZE, DEGREE, DET_LEN>,
@@ -165,7 +175,7 @@ pub struct DeterminantAndAdjugateExpansions1Parameter<const SIZE: usize, const D
 impl DeterminantAndAdjugateExpansions1Parameter<2, 1, 3, 2> {
 
     /// M(μ) = A + Bμ
-    fn new_from_matrix(a: &Matrix2<f64>, b: &Matrix2<f64>) -> Self {
+    fn new_from_matrix(a: &Matrix2x2, b: &Matrix2x2) -> Self {
 
         let c0_adj = adjugate2x2(a);
         let c1_adj = adjugate2x2(b);
@@ -184,22 +194,22 @@ impl DeterminantAndAdjugateExpansions1Parameter<2, 1, 3, 2> {
 impl DeterminantAndAdjugateExpansions1Parameter<3, 1, 4, 3> {
 
     /// M(μ) = A + Bμ
-    fn new_from_matrix(a: &Matrix3<f64>, b: &Matrix3<f64>) -> Self {
+    fn new_from_matrix(a: &Matrix3x3, b: &Matrix3x3) -> Self {
 
         // Common computations
-        let i= Matrix3::identity();
+        let i: Matrix3x3 = Matrix3x3::identity();
         let tr_a: f64 = a.trace();
         let tr_b: f64 = b.trace();
 
         // Matrix products
-        let a_sq: Matrix3<f64> = a * a;
-        let b_sq: Matrix3<f64> = b * b;
-        let ab: Matrix3<f64> = a * b;
+        let a_sq: Matrix3x3 = a * a;
+        let b_sq: Matrix3x3 = b * b;
+        let ab: Matrix3x3 = a * b;
 
         // Intermediate terms (reused for both det and adj)
         let tr_ab: f64 = ab.trace();
-        let term_a: Matrix3<f64> = &a_sq - a * tr_a;
-        let term_b: Matrix3<f64> = &b_sq - b * tr_b;
+        let term_a: Matrix3x3 = &a_sq - a * tr_a;
+        let term_b: Matrix3x3 = &b_sq - b * tr_b;
         let tr_term_a: f64 = 0.5 * term_a.trace(); // = (trA_sq - trA**2)/2
         let tr_term_b: f64 = 0.5 * term_b.trace(); // = (trB_sq - trB**2)/2
 
@@ -210,9 +220,9 @@ impl DeterminantAndAdjugateExpansions1Parameter<3, 1, 4, 3> {
         let c3_det: f64 = b.determinant();
 
         // Adjugate coefficients
-        let c0_adj: Matrix3<f64> = &term_a - &i * tr_term_a;
-        let c1_adj: Matrix3<f64> = &i * (tr_a * tr_b - tr_ab) - (a * tr_b + b * tr_a) + ab + b * a;
-        let c2_adj: Matrix3<f64> = &term_b - &i * tr_term_b;
+        let c0_adj: Matrix3x3 = &term_a - &i * tr_term_a;
+        let c1_adj: Matrix3x3 = &i * (tr_a * tr_b - tr_ab) - (a * tr_b + b * tr_a) + ab + b * a;
+        let c2_adj: Matrix3x3 = &term_b - &i * tr_term_b;
 
         DeterminantAndAdjugateExpansions1Parameter {
             determinant: PolynomialCoefficientsFixedLength([c0_det, c1_det, c2_det, c3_det]),

@@ -216,16 +216,16 @@ mod tests {
         let dimension: usize = 2;
         let order: usize = 2;
 
-        let mut matrix: BsrMatrix<f64> = initialize_nonlinear_stiffness_matrix(num_node, &elements, dimension, order).unwrap();
+        let matrix: BsrMatrix<f64> = initialize_nonlinear_stiffness_matrix(num_node, &elements, dimension, order).unwrap();
 
-        println!("to_dense ->\n{:?}", matrix.to_dense());
+        //println!("to_dense ->\n{:?}", matrix.to_dense());
 
         assert_eq!(matrix.shape(), (num_node * dimension, binomial(num_node + order - 1, order) * dimension.pow(order as u32)));
         assert_eq!(matrix.block_size(), (dimension, dimension.pow(order as u32)));
 
-        println!("indptr = {:?}", matrix.indptr());
-        println!("indices = {:?}", matrix.indices());
-        println!("data = {:?}", matrix.data_mut());
+        //println!("indptr = {:?}", matrix.indptr());
+        //println!("indices = {:?}", matrix.indices());
+        //println!("data = {:?}", matrix.data_mut());
     }
 
     /*

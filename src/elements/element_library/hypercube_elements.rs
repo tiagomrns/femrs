@@ -14,7 +14,7 @@
 //!     type Coordinates;
 //!     const DIMENSION: u8;
 //!     const NUMBER_OF_NODES: u8;
-//!     fn evaluate_shape_functions(coords: &Self::Coordinates) -> DVector<f64>;
+//!     fn evaluate_shape_functions(coords: &Self::Coordinates) -> Vec<f64>;
 //!     fn evaluate_jacobian_of_shape_functions(coords: &Self::Coordinates) -> DMatrix<f64>;
 //! }
 //! ```
@@ -41,24 +41,24 @@
 //! # Examples
 //!
 //! ```
-//! use nalgebra::Vector3;
+//! use ndarray::Array2;
 //! use shape_functions::{CubeOrder1ShapeFunctions, NodalBasedShapeFunctions};
 //!
 //! // Evaluate shape functions at a point
-//! let coords = Vector3::new(0.5, 0.5, 0.5);
+//! let coords = [0.5, 0.5, 0.5];
 //! let n = CubeOrder1ShapeFunctions::evaluate_shape_functions(&coords);
 //! let jac = CubeOrder1ShapeFunctions::evaluate_jacobian_of_shape_functions(&coords);
 //! ```
 
-use nalgebra::{DVector, DMatrix, Vector2, Vector3};
+use ndarray::Array2;
 
 // Trait for shape functions
 pub trait NodalBasedShapeFunctions {
     type Coordinates;
     const DIMENSION: u8;
     const NUMBER_OF_NODES: u8;
-    fn evaluate_shape_functions(coords: &Self::Coordinates) -> DVector<f64>;
-    fn evaluate_jacobian_of_shape_functions(coords: &Self::Coordinates) -> DMatrix<f64>;
+    fn evaluate_shape_functions(coords: &Self::Coordinates) -> Vec<f64>;
+    fn evaluate_jacobian_of_shape_functions(coords: &Self::Coordinates) -> Array2<f64>;
 }
 
 // 1D Line elements
@@ -69,7 +69,7 @@ impl<const ORDER: u8> NodalBasedShapeFunctions for LineShapeFunctions<ORDER> {
     const DIMENSION: u8 = 1;
     const NUMBER_OF_NODES: u8 = ORDER + 1;
 
-    fn evaluate_shape_functions(x: &f64) -> DVector<f64> {
+    fn evaluate_shape_functions(x: &f64) -> Vec<f64> {
         match ORDER {
             1 => LineShapeFunctions::<1>::evaluate_shape_functions_impl(x),
             2 => LineShapeFunctions::<2>::evaluate_shape_functions_impl(x),
@@ -77,7 +77,7 @@ impl<const ORDER: u8> NodalBasedShapeFunctions for LineShapeFunctions<ORDER> {
         }
     }
     
-    fn evaluate_jacobian_of_shape_functions(x: &f64) -> DMatrix<f64> {
+    fn evaluate_jacobian_of_shape_functions(x: &f64) -> Array2<f64> {
         match ORDER {
             1 => LineShapeFunctions::<1>::evaluate_jacobian_impl(x),
             2 => LineShapeFunctions::<2>::evaluate_jacobian_impl(x),
@@ -91,12 +91,12 @@ impl LineShapeFunctions<1> {
     x=0      -> N1(x) = 1-x,     N1'(x) = -1
     x=1      -> N2(x) = x,       N2'(x) = 1
     */
-    fn evaluate_shape_functions_impl(x: &f64) -> DVector<f64> {
-        DVector::from_vec(vec![1.0 - x, *x])
+    fn evaluate_shape_functions_impl(x: &f64) -> Vec<f64> {
+        vec![1.0 - x, *x]
     }
     
-    fn evaluate_jacobian_impl(_x: &f64) -> DMatrix<f64> {
-        DMatrix::from_row_slice(1, 2, &[-1.0, 1.0])
+    fn evaluate_jacobian_impl(_x: &f64) -> Array2<f64> {
+        Array2::from_shape_vec((1, 2), vec![-1.0, 1.0]).unwrap()
     }
 }
 
@@ -106,18 +106,18 @@ impl LineShapeFunctions<2> {
     x=0.5    -> N2(x) = 4*x*(1-x),       N2'(x) = 4 - 8*x
     x=1      -> N3(x) = -x*(1-2*x),      N3'(x) = 4*x - 1
     */
-    fn evaluate_shape_functions_impl(x: &f64) -> DVector<f64> {
+    fn evaluate_shape_functions_impl(x: &f64) -> Vec<f64> {
         let a1 = 1.0 - x;
         let a2 = 1.0 - 2.0 * x;
         let x00 = a1 * a2;
         let x05 = 4.0 * x * a1;
         let x10 = -x * a2;
-        DVector::from_vec(vec![x00, x05, x10])
+        vec![x00, x05, x10]
     }
     
-    fn evaluate_jacobian_impl(x: &f64) -> DMatrix<f64> {
+    fn evaluate_jacobian_impl(x: &f64) -> Array2<f64> {
         let aux: f64 = 4.0 * x;
-        DMatrix::from_row_slice(1, 3, &[aux - 3.0, 4.0 - 8.0 * x, aux - 1.0])
+        Array2::from_shape_vec((1, 3), vec![-1.0, 1.0]).unwrap()
     }
 }
 
@@ -125,19 +125,19 @@ impl LineShapeFunctions<2> {
 struct SquareShapeFunctions<const ORDER_X: u8, const ORDER_Y: u8>;
 
 impl<const ORDER_X: u8, const ORDER_Y: u8> NodalBasedShapeFunctions for SquareShapeFunctions<ORDER_X, ORDER_Y> {
-    type Coordinates = Vector2<f64>;
+    type Coordinates = [f64; 2];
     const DIMENSION: u8 = 2;
     const NUMBER_OF_NODES: u8 = (ORDER_X+1) * (ORDER_Y+1);
     
-    fn evaluate_shape_functions(coords: &Vector2<f64>) -> DVector<f64> {
-        let x = coords[0];
-        let y = coords[1];
+    fn evaluate_shape_functions(coords: &[f64; 2]) -> Vec<f64> {
+        let x: f64 = coords[0];
+        let y: f64 = coords[1];
         
         let line_functions_x = LineShapeFunctions::<ORDER_X>::evaluate_shape_functions(&x);
         let line_functions_y = LineShapeFunctions::<ORDER_Y>::evaluate_shape_functions(&y);
         
         // Outer product and flatten
-        let mut result = DVector::zeros(line_functions_x.len() * line_functions_y.len());
+        let mut result = vec![0.0; line_functions_x.len() * line_functions_y.len()];
         for i in 0..line_functions_y.len() {
             for j in 0..line_functions_x.len() {
                 result[i * line_functions_x.len() + j] = line_functions_y[i] * line_functions_x[j];
@@ -146,9 +146,9 @@ impl<const ORDER_X: u8, const ORDER_Y: u8> NodalBasedShapeFunctions for SquareSh
         result
     }
     
-    fn evaluate_jacobian_of_shape_functions(coords: &Vector2<f64>) -> DMatrix<f64> {
-        let x = coords[0];
-        let y = coords[1];
+    fn evaluate_jacobian_of_shape_functions(coords: &[f64; 2]) -> Array2<f64> {
+        let x: f64 = coords[0];
+        let y: f64 = coords[1];
         
         let line_functions_x = LineShapeFunctions::<ORDER_X>::evaluate_shape_functions(&x);
         let line_jacobian_x = LineShapeFunctions::<ORDER_X>::evaluate_jacobian_of_shape_functions(&x);
@@ -157,13 +157,13 @@ impl<const ORDER_X: u8, const ORDER_Y: u8> NodalBasedShapeFunctions for SquareSh
         let line_jacobian_y = LineShapeFunctions::<ORDER_Y>::evaluate_jacobian_of_shape_functions(&y);
         
         let n_nodes = line_functions_x.len() * line_functions_y.len();
-        let mut jacobian = DMatrix::zeros(n_nodes, 2);
+        let mut jacobian = Array2::zeros((n_nodes, 2));
         
         // dx component (df/dx)
         for i in 0..line_functions_y.len() {
             for j in 0..line_functions_x.len() {
                 let idx = i * line_functions_x.len() + j;
-                jacobian[(idx, 0)] = line_functions_y[i] * line_jacobian_x[(0, j)];
+                jacobian[[idx, 0]] = line_functions_y[i] * line_jacobian_x[(0, j)];
             }
         }
         
@@ -171,7 +171,7 @@ impl<const ORDER_X: u8, const ORDER_Y: u8> NodalBasedShapeFunctions for SquareSh
         for i in 0..line_functions_y.len() {
             for j in 0..line_functions_x.len() {
                 let idx = i * line_functions_x.len() + j;
-                jacobian[(idx, 1)] = line_jacobian_y[(0, i)] * line_functions_x[j];
+                jacobian[[idx, 1]] = line_jacobian_y[(0, i)] * line_functions_x[j];
             }
         }
         
@@ -214,20 +214,20 @@ struct CubeShapeFunctions<const ORDER_X: u8, const ORDER_Y: u8, const ORDER_Z: u
 
 impl<const ORDER_X: u8, const ORDER_Y: u8, const ORDER_Z: u8> NodalBasedShapeFunctions 
 for CubeShapeFunctions<ORDER_X, ORDER_Y, ORDER_Z> {
-    type Coordinates = Vector3<f64>;
+    type Coordinates = [f64; 3];
     const DIMENSION: u8 = 3;
     const NUMBER_OF_NODES: u8 = (ORDER_X+1) * (ORDER_Y+1) * (ORDER_Z+1);
     
-    fn evaluate_shape_functions(coords: &Vector3<f64>) -> DVector<f64> {
+    fn evaluate_shape_functions(coords: &[f64; 3]) -> Vec<f64> {
         let x = coords[0];
         let y = coords[1];
         let z = coords[2];
         
-        let square_functions = SquareShapeFunctions::<ORDER_X, ORDER_Y>::evaluate_shape_functions(&Vector2::new(x, y));
+        let square_functions = SquareShapeFunctions::<ORDER_X, ORDER_Y>::evaluate_shape_functions(&[x, y]);
         let line_functions_z = LineShapeFunctions::<ORDER_Z>::evaluate_shape_functions(&z);
         
         // Outer product and flatten
-        let mut result = DVector::zeros(square_functions.len() * line_functions_z.len());
+        let mut result = vec![0.0; square_functions.len() * line_functions_z.len()];
         for i in 0..line_functions_z.len() {
             for j in 0..square_functions.len() {
                 result[i * square_functions.len() + j] = line_functions_z[i] * square_functions[j];
@@ -236,25 +236,25 @@ for CubeShapeFunctions<ORDER_X, ORDER_Y, ORDER_Z> {
         result
     }
     
-    fn evaluate_jacobian_of_shape_functions(coords: &Vector3<f64>) -> DMatrix<f64> {
+    fn evaluate_jacobian_of_shape_functions(coords: &[f64; 3]) -> Array2<f64> {
         let x = coords[0];
         let y = coords[1];
         let z = coords[2];
         
-        let square_functions = SquareShapeFunctions::<ORDER_X, ORDER_Y>::evaluate_shape_functions(&Vector2::new(x, y));
-        let square_jacobian = SquareShapeFunctions::<ORDER_X, ORDER_Y>::evaluate_jacobian_of_shape_functions(&Vector2::new(x, y));
+        let square_functions = SquareShapeFunctions::<ORDER_X, ORDER_Y>::evaluate_shape_functions(&[x, y]);
+        let square_jacobian = SquareShapeFunctions::<ORDER_X, ORDER_Y>::evaluate_jacobian_of_shape_functions(&[x, y]);
         
         let line_functions_z = LineShapeFunctions::<ORDER_Z>::evaluate_shape_functions(&z);
         let line_jacobian_z = LineShapeFunctions::<ORDER_Z>::evaluate_jacobian_of_shape_functions(&z);
         
         let n_nodes = square_functions.len() * line_functions_z.len();
-        let mut jacobian = DMatrix::zeros(n_nodes, 3);
+        let mut jacobian = Array2::zeros((n_nodes, 3));
         
         // dx component (df/dx)
         for i in 0..line_functions_z.len() {
             for j in 0..square_functions.len() {
                 let idx = i * square_functions.len() + j;
-                jacobian[(idx, 0)] = line_functions_z[i] * square_jacobian[(j, 0)];
+                jacobian[[idx, 0]] = line_functions_z[i] * square_jacobian[(j, 0)];
             }
         }
         
@@ -262,7 +262,7 @@ for CubeShapeFunctions<ORDER_X, ORDER_Y, ORDER_Z> {
         for i in 0..line_functions_z.len() {
             for j in 0..square_functions.len() {
                 let idx = i * square_functions.len() + j;
-                jacobian[(idx, 1)] = line_functions_z[i] * square_jacobian[(j, 1)];
+                jacobian[[idx, 1]] = line_functions_z[i] * square_jacobian[(j, 1)];
             }
         }
         
@@ -270,7 +270,7 @@ for CubeShapeFunctions<ORDER_X, ORDER_Y, ORDER_Z> {
         for i in 0..line_functions_z.len() {
             for j in 0..square_functions.len() {
                 let idx = i * square_functions.len() + j;
-                jacobian[(idx, 2)] = line_jacobian_z[(0, i)] * square_functions[j];
+                jacobian[[idx, 2]] = line_jacobian_z[(0, i)] * square_functions[j];
             }
         }
         
@@ -359,16 +359,16 @@ impl CubeSerendipityShapeFunctions {
 }
 
 impl NodalBasedShapeFunctions for CubeSerendipityShapeFunctions {
-    type Coordinates = Vector3<f64>;
+    type Coordinates = [f64; 3];
     const DIMENSION: u8 = 3;
     const NUMBER_OF_NODES: u8 = 20;
 
-    fn evaluate_shape_functions(coords: &Vector3<f64>) -> DVector<f64> {
+    fn evaluate_shape_functions(coords: &[f64; 3]) -> Vec<f64> {
         let x: f64 = coords[0];
         let y: f64 = coords[1];
         let z: f64 = coords[2];
 
-        let mut result = DVector::zeros(20);
+        let mut result = vec![0.0; 20];
         
         let (x00, x05, x10) = Self::line_shape_functions(x);
         let (y00, y05, y10) = Self::line_shape_functions(y);
@@ -414,12 +414,12 @@ impl NodalBasedShapeFunctions for CubeSerendipityShapeFunctions {
         result
     }
 
-    fn evaluate_jacobian_of_shape_functions(coords: &Vector3<f64>) -> DMatrix<f64> {
+    fn evaluate_jacobian_of_shape_functions(coords: &[f64; 3]) -> Array2<f64> {
         let x: f64 = coords[0];
         let y: f64 = coords[1];
         let z: f64 = coords[2];
 
-        let mut jacobian = DMatrix::zeros(20, 3);
+        let mut jacobian = Array2::zeros((20, 3));
     
         let (x00, x05, x10) = Self::line_shape_functions(x);
         let (y00, y05, y10) = Self::line_shape_functions(y);

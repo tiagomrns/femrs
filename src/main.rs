@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-pub mod assembly;
+pub mod assemble {
+    pub mod assembly;
+    pub mod write_data;
+}
 
 pub mod elements {
     pub mod parametric_topology_element {
@@ -20,8 +23,10 @@ pub mod elements {
     }
 }
 
-pub mod read_mesh {
+pub mod mesh {
     pub mod locate_nodes_o_log_n;
+    pub mod node_coordinates_ndarray;
+    //pub mod hypernode;
 }
 
 
