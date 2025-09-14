@@ -10,10 +10,10 @@ pub mod elements {
         pub mod elastic_force_matrices {
             pub mod parametric_expansion_with_recursion;
         }
-        pub mod determinant_and_adjugate;
+        //pub mod determinant_and_adjugate;
         pub mod position_jacobian;
         //pub mod integrate_elements;
-        //pub mod mass_matrices;
+        pub mod mass_matrices;
     }
     pub mod quadrature {
         pub mod quadrature_rules;

@@ -176,8 +176,8 @@ fn transform_to_01<const DIM: usize, const LEN: usize>(
     points: [[f64; DIM]; LEN],
     weights: [f64; LEN],
 ) -> ([[f64; DIM]; LEN], [f64; LEN]) {
-    let transformed_points = points.map(|p| (p + 1.0) / 2.0);
-    let transformed_weights = weights.map(|w| w / 2.0_f64.powi(DIM as i32));
+    let transformed_points: [[f64; DIM]; LEN] = points.map(|p: [f64; DIM]| (p.map(|x: f64| (x + 1.0)/2.0)));
+    let transformed_weights: [f64; LEN] = weights.map(|w| w / 2.0_f64.powi(DIM as i32));
     (transformed_points, transformed_weights)
 }
 

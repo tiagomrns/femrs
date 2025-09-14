@@ -117,7 +117,7 @@ impl LineShapeFunctions<2> {
     
     fn evaluate_jacobian_impl(x: &f64) -> Array2<f64> {
         let aux: f64 = 4.0 * x;
-        Array2::from_shape_vec((1, 3), vec![-1.0, 1.0]).unwrap()
+        Array2::from_shape_vec((1, 3), vec![aux - 3.0, 4.0 - 2.0*aux, aux - 1.0]).unwrap()
     }
 }
 

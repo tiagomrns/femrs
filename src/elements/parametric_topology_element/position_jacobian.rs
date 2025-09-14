@@ -51,48 +51,227 @@
 ///
 /// # Panics
 /// Panics if dimensions are incompatible
-pub fn compute_position_jacobian<D: Dim>(
-    all_nodal_coords: &Matrix<f64, D, Dyn, VecStorage<f64, D, Dyn>>,
+
+use ndarray::Array2;
+
+pub fn compute_position_jacobian(
+    all_nodal_coords: &Array2<f64>,
     element_node_ids: &[u32],
-    jacobian_shape_functions: &DMatrix<f64>,
-) -> Matrix<f64, D, Dyn, VecStorage<f64, D, Dyn>>
-where
-    D: Dim, D: DimName
-    // Ensure D is either U2 or U3 by checking it's one of these types
-{
-    let dim = all_nodal_coords.nrows();
+    jacobian_shape_functions: &Array2<f64>,
+) -> Array2<f64> {
+    let dim = all_nodal_coords.shape()[0];
+    let n_nodes = element_node_ids.len();
 
     assert_eq!(
-        jacobian_shape_functions.ncols(),
+        jacobian_shape_functions.shape()[1],
         dim,
         "Shape function columns must match spatial dimension"
     );
 
-    // More efficient way to construct the element coordinates matrix
-    let mut element_coords = Matrix::zeros_generic(D::name(), Dyn(n_nodes));
+    // Build element coordinates matrix by selecting columns from all_nodal_coords
+    let mut element_coords = Array2::zeros((dim, n_nodes));
     for (col, &node_id) in element_node_ids.iter().enumerate() {
-        element_coords
-            .column_mut(col)
-            .copy_from(&all_nodal_coords.column(node_id as usize));
+        let node_col = all_nodal_coords.column(node_id as usize);
+        element_coords.column_mut(col).assign(&node_col);
     }
 
-    element_coords * jacobian_shape_functions
+    // Matrix multiplication: element_coords (dim, n_nodes) × jacobian_shape_functions (n_nodes, dim)
+    element_coords.dot(jacobian_shape_functions)
 }
 
 /// Convenience wrapper for 3D case
 pub fn compute_position_jacobian_3d(
-    all_nodal_coords: &Matrix<f64, U3, Dyn, VecStorage<f64, U3, Dyn>>,
+    all_nodal_coords: &Array2<f64>,
     element_node_ids: &[u32],
-    jacobian_shape_functions: &DMatrix<f64>,
-) -> Matrix<f64, U3, Dyn, VecStorage<f64, U3, Dyn>> {
+    jacobian_shape_functions: &Array2<f64>,
+) -> Array2<f64> {
+    assert_eq!(all_nodal_coords.shape()[0], 3, "all_nodal_coords must be 3D");
     compute_position_jacobian(all_nodal_coords, element_node_ids, jacobian_shape_functions)
 }
 
 /// Convenience wrapper for 2D case
 pub fn compute_position_jacobian_2d(
-    all_nodal_coords: &Matrix<f64, U2, Dyn, VecStorage<f64, U2, Dyn>>,
+    all_nodal_coords: &Array2<f64>,
     element_node_ids: &[u32],
-    jacobian_shape_functions: &DMatrix<f64>,
-) -> Matrix<f64, U2, Dyn, VecStorage<f64, U2, Dyn>> {
+    jacobian_shape_functions: &Array2<f64>,
+) -> Array2<f64> {
+    assert_eq!(all_nodal_coords.shape()[0], 2, "all_nodal_coords must be 2D");
     compute_position_jacobian(all_nodal_coords, element_node_ids, jacobian_shape_functions)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::array;
+
+    #[test]
+    fn test_compute_position_jacobian_2d() {
+        // Create a simple 2D mesh with 4 nodes
+        let all_nodal_coords = array![
+            [0.0, 1.0, 1.0, 0.0], // x coordinates
+            [0.0, 0.0, 1.0, 1.0], // y coordinates
+        ];
+
+        // Select nodes for a quadrilateral element
+        let element_node_ids = [0, 1, 2, 3];
+        
+        // Shape function derivatives for a bilinear element at center (ξ=0, η=0)
+        let jacobian_shape_functions = array![
+            [-0.25, -0.25],
+            [0.25, -0.25],
+            [0.25, 0.25],
+            [-0.25, 0.25],
+        ];
+
+        let result = compute_position_jacobian_2d(
+            &all_nodal_coords,
+            &element_node_ids,
+            &jacobian_shape_functions,
+        );
+
+        // Expected Jacobian for a unit square at center
+        let expected = array![
+            [0.5, 0.0],
+            [0.0, 0.5],
+        ];
+
+        assert_eq!(result.shape(), expected.shape());
+        for i in 0..result.shape()[0] {
+            for j in 0..result.shape()[1] {
+                assert!((result[[i, j]] - expected[[i, j]]).abs() < 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_compute_position_jacobian_3d() {
+        // Create a simple 3D mesh with 8 nodes
+        let all_nodal_coords = array![
+            [0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0], // x coordinates
+            [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0], // y coordinates
+            [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0], // z coordinates
+        ];
+
+        // Select nodes for a hexahedral element
+        let element_node_ids = [0, 1, 2, 3, 4, 5, 6, 7];
+        
+        // Shape function derivatives for a trilinear element at center (ξ=0, η=0, ζ=0)
+        let jacobian_shape_functions = array![
+            [-0.125, -0.125, -0.125],
+            [0.125, -0.125, -0.125],
+            [0.125, 0.125, -0.125],
+            [-0.125, 0.125, -0.125],
+            [-0.125, -0.125, 0.125],
+            [0.125, -0.125, 0.125],
+            [0.125, 0.125, 0.125],
+            [-0.125, 0.125, 0.125],
+        ];
+
+        let result = compute_position_jacobian_3d(
+            &all_nodal_coords,
+            &element_node_ids,
+            &jacobian_shape_functions,
+        );
+
+        // Expected Jacobian for a unit cube at center
+        let expected = array![
+            [0.5, 0.0, 0.0],
+            [0.0, 0.5, 0.0],
+            [0.0, 0.0, 0.5],
+        ];
+
+        assert_eq!(result.shape(), expected.shape());
+        for i in 0..result.shape()[0] {
+            for j in 0..result.shape()[1] {
+                assert!((result[[i, j]] - expected[[i, j]]).abs() < 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_compute_position_jacobian_general() {
+        // Test the general function with 2D data
+        let all_nodal_coords = array![
+            [0.0, 1.0, 0.5],
+            [0.0, 0.0, 1.0],
+        ];
+
+        let element_node_ids = [0, 1, 2];
+        
+        let jacobian_shape_functions = array![
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [-1.0, -1.0],
+        ];
+
+        let result = compute_position_jacobian(
+            &all_nodal_coords,
+            &element_node_ids,
+            &jacobian_shape_functions,
+        );
+
+        // Expected result: element_coords * jacobian_shape_functions
+        // element_coords = [[0.0, 1.0, 0.5],
+        //                   [0.0, 0.0, 1.0]]
+        let expected = array![
+            [0.0*1.0 + 1.0*0.0 + 0.5*(-1.0), 0.0*0.0 + 1.0*1.0 + 0.5*(-1.0)],
+            [0.0*1.0 + 0.0*0.0 + 1.0*(-1.0), 0.0*0.0 + 0.0*1.0 + 1.0*(-1.0)],
+        ];
+
+        assert_eq!(result.shape(), expected.shape());
+        for i in 0..result.shape()[0] {
+            for j in 0..result.shape()[1] {
+                assert!((result[[i, j]] - expected[[i, j]]).abs() < 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "all_nodal_coords must be 2D")]
+    fn test_2d_wrapper_with_3d_data() {
+        let all_nodal_coords = array![
+            [0.0, 1.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0],
+        ];
+
+        let element_node_ids = [0, 1, 2, 3];
+        let jacobian_shape_functions = array![
+            [-0.25, -0.25],
+            [0.25, -0.25],
+            [0.25, 0.25],
+            [-0.25, 0.25],
+        ];
+
+        compute_position_jacobian_2d(
+            &all_nodal_coords,
+            &element_node_ids,
+            &jacobian_shape_functions,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Shape function columns must match spatial dimension")]
+    fn test_dimension_mismatch() {
+        let all_nodal_coords = array![
+            [0.0, 1.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0, 1.0],
+        ];
+
+        let element_node_ids = [0, 1, 2, 3];
+        
+        // Wrong shape - 3 columns instead of 2
+        let jacobian_shape_functions = array![
+            [-0.25, -0.25, 0.0],
+            [0.25, -0.25, 0.0],
+            [0.25, 0.25, 0.0],
+            [-0.25, 0.25, 0.0],
+        ];
+
+        compute_position_jacobian(
+            &all_nodal_coords,
+            &element_node_ids,
+            &jacobian_shape_functions,
+        );
+    }
 }

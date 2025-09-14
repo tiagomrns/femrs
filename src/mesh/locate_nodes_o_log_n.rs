@@ -123,7 +123,6 @@ impl MeshNodeConverter {
         Ok((element_to_nodes, index_to_element_id))
     }
 
-
     pub fn local_to_global(&self, element_id: u32, local_node_num: u8) -> Result<u32, MeshError> {
         let nodes = self.get_element_nodes(element_id)?;
         
