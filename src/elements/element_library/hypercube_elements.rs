@@ -59,6 +59,9 @@ pub trait NodalBasedShapeFunctions {
     const NUMBER_OF_NODES: u8;
     fn evaluate_shape_functions(coords: &Self::Coordinates) -> Vec<f64>;
     fn evaluate_jacobian_of_shape_functions(coords: &Self::Coordinates) -> Array2<f64>;
+    fn node_ids(&self) -> &[u32] {
+        &[]
+    }
 }
 
 // 1D Line elements

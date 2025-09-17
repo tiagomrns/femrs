@@ -41,7 +41,9 @@
 //! Note: Higher-order rules can be added by extending the `create_1d_rule` function
 //! and adding corresponding type aliases and initialization methods.
 
-use std::{iter::IntoIterator, usize};
+use std::iter::{IntoIterator, Zip};
+use std::slice::Iter;
+use std::usize;
 use once_cell::sync::Lazy;
 
 #[derive(Debug)]
@@ -68,7 +70,13 @@ impl std::error::Error for QuadratureError {}
 // Use const generic for compile-time known sizes
 pub struct QuadratureRule<const DIM: usize, const LEN: usize> {
     pub points: [[f64; DIM]; LEN],  // Array of fixed-size vectors
-    pub weights: [f64; LEN],             // Array of weights
+    pub weights: [f64; LEN],        // Array of weights
+}
+
+impl<const DIM: usize, const LEN: usize> QuadratureRule<DIM, LEN> {
+    pub fn iter(&self) -> Zip<Iter<'_, [f64; DIM]>, Iter<'_, f64>> {
+        self.points.iter().zip(self.weights.iter())
+    }
 }
 
 // Implement IntoIterator to allow for iteration over points and weights
@@ -81,8 +89,6 @@ impl<const DIM: usize, const LEN: usize> IntoIterator for QuadratureRule<DIM, LE
 
     fn into_iter(self) -> Self::IntoIter {
         self.points.into_iter().zip(self.weights.into_iter())
-        //IntoIterator::into_iter(self.points)
-        //    .zip(IntoIterator::into_iter(self.weights))
     }
 }
 

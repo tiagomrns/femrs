@@ -12,7 +12,7 @@ pub mod elements {
         }
         //pub mod determinant_and_adjugate;
         pub mod position_jacobian;
-        //pub mod integrate_elements;
+        pub mod integrate_elements;
         pub mod mass_matrices;
     }
     pub mod quadrature {
